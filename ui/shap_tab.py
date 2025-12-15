@@ -23,7 +23,18 @@ FEATURE_EXPLANATIONS = {
 
 def display_shap_tab(player_row):
     st.header("SHAP Model Explainability")
-
+    try:
+        import shap
+        import matplotlib.pyplot as plt
+    except ImportError:
+        st.warning(
+            "SHAP explainability is unavailable in the cloud environment.\n\n"
+            "This feature works locally and is included for model transparency, "
+            "but Streamlit Cloud currently runs Python 3.13 which SHAP does not yet support."
+        )
+        return
+    
+    
     X, shap_values, base_value = get_shap_values(player_row)
 
     predicted = float(base_value + shap_values[0].sum())
