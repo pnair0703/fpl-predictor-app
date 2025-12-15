@@ -79,13 +79,7 @@ elif page == "Best XI Pitch":
     display_best_xi_pitch(best_xi)
 
 elif page == "SHAP Explainability":
-    st.subheader("SHAP Model Explanation")
 
-    shap_player_name = st.selectbox(
-        "Select a player to explain",
-        df["web_name"].tolist(),
-        key="shap_player_select"
-    )
 
     shap_player_row = df[df["web_name"] == shap_player_name].iloc[0]
 
