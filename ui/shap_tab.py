@@ -2,7 +2,7 @@
 
 import streamlit as st
 import numpy as np
-from services.shap_explainer import get_feature_attributions
+from services.shap_explainer import get_shap_values
 
 FEATURE_EXPLANATIONS = {
     "minutes": "Minutes played recently. Higher minutes increase opportunity for FPL points.",
@@ -80,4 +80,3 @@ This explains *why* the model favors or avoids this player.
             st.markdown(f"**{feature}**")
             st.caption(explanation)
 
-st.write(X)
