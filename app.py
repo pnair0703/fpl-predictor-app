@@ -81,8 +81,6 @@ elif page == "Best XI Pitch":
 elif page == "SHAP Explainability":
 
 
-    shap_player_row = df[df["web_name"] == shap_player_name].iloc[0]
-
     display_shap_tab(df)
 
 elif page == "Prediction Uncertainty":
