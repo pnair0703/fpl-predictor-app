@@ -22,14 +22,12 @@ FEATURE_EXPLANATIONS = {
 
 def display_shap_tab(player_row):
     st.header("SHAP Model Explainability")
-    try:
-        import shap
-        import matplotlib.pyplot as plt
-    except ImportError:
+    shap_values = get_shap_values(model, features)
+
+    if shap_values is None:
         st.warning(
-            "SHAP explainability is unavailable in the cloud environment.\n\n"
-            "This feature works locally and is included for model transparency, "
-            "but Streamlit Cloud currently runs Python 3.13 which SHAP does not yet support."
+            "SHAP explainability is unavailable in the cloud runtime "
+            "(Python 3.13 dependency limitation)."
         )
         return
     

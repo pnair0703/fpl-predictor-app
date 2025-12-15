@@ -1,11 +1,19 @@
 # services/shap_explainer.py
 
-import shap
+
 import joblib
 import numpy as np
 import pandas as pd
 from services.ml_predictor import prepare_features
+def get_shap_values(model, X):
+    try:
+        import shap
+    except ImportError:
+        return None
 
+    explainer = shap.Explainer(model)
+    shap_values = explainer(X)
+    return shap_values
 # Load trained model ONCE
 _model = joblib.load("models/xgb_fpl_model.pkl")
 
