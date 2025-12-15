@@ -12,7 +12,7 @@ import numpy as np
 df = pd.read_csv("data/training_ready.csv")
 
 # 2) Feature list must match what we will use at prediction time
-features = [
+FEATURES = [
     "minutes",
     "xG",
     "xA",
@@ -28,7 +28,7 @@ features = [
 
 target = "total_points"
 
-X = df[features]
+X = df[FEATURES]
 y = df[target]
 
 X_train, X_test, y_train, y_test = train_test_split(
