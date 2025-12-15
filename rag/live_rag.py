@@ -47,14 +47,21 @@ POSITIVE_WORDS = [
 def compute_sentiment_tag(player, news_links):
     """
     Computes a numeric sentiment score from headlines.
-    If no news exists, returns neutral sentiment (0.0).
+    Falls back gracefully if HF inference is unavailable.
     """
-    from huggingface_hub import InferenceClient
-
-    client = InferenceClient("gpt2")
-    name = player["web_name"]
 
     if not news_links:
+        return 0.0, "🟡"
+
+    try:
+        from huggingface_hub import InferenceClient
+    except ImportError:
+        # HuggingFace not available in this environment
+        return 0.0, "🟡"
+
+    try:
+        client = InferenceClient("gpt2")
+    except Exception:
         return 0.0, "🟡"
 
     scores = []
@@ -64,16 +71,23 @@ def compute_sentiment_tag(player, news_links):
 
         try:
             out = client.text_generation(
-                prompt=f"Rate sentiment of this football news headline from -1 to 1:\n\n{headline}\n\nJust the number:",
+                prompt=(
+                    "Rate sentiment of this football news headline "
+                    "from -1 to 1:\n\n"
+                    f"{headline}\n\n"
+                    "Just the number:"
+                ),
                 max_new_tokens=10
             )
-            try:
-                val = float(out.strip().replace(" ", "").replace("\n", ""))
-            except:
-                val = 0.0
+
+            val = float(out.strip().replace("\n", ""))
             scores.append(val)
-        except:
+
+        except Exception:
             scores.append(0.0)
+
+    if not scores:
+        return 0.0, "🟡"
 
     avg = sum(scores) / len(scores)
 
@@ -85,6 +99,7 @@ def compute_sentiment_tag(player, news_links):
         icon = "🟡"
 
     return float(avg), icon
+
 
 
 # ---------------------------------------------------------
@@ -137,6 +152,9 @@ def build_live_rag_answer(player):
     Clean, readable, premium-style RAG output.
     NEWS is shown AT THE END, after final interpretation.
     """
+    if sentiment_score == 0.0:
+        sentiment_note = "_Live sentiment unavailable in this environment._"
+
     name = player["web_name"]
 
     # -------------------------------------------------
@@ -161,6 +179,8 @@ def build_live_rag_answer(player):
     else:
         recommendation = "HOLD 🟡"
 
+
+    
     # -------------------------------------------------
     # BUY / HOLD / SELL SECTION
     # -------------------------------------------------
