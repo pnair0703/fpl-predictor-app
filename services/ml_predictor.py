@@ -56,3 +56,10 @@ def prepare_features(row):
 def predict_player_score(row):
     features = prepare_features(row)
     return float(_model.predict(features)[0])
+
+def predict_from_features(X):
+    """
+    Predict directly from a prepared feature DataFrame.
+    This is required for explainability.
+    """
+    return float(_model.predict(X)[0])

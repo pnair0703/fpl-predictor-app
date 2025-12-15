@@ -1,9 +1,7 @@
-# services/shap_explainer.py
-
 import pandas as pd
 import numpy as np
 
-from services.ml_predictor import predict_player_score
+from services.ml_predictor import predict_from_features
 
 FEATURES = [
     "minutes",
@@ -21,30 +19,27 @@ FEATURES = [
 
 def get_shap_values(player_row):
     """
-    Cloud-safe feature attribution.
-    Measures how much each feature moves the prediction
-    when perturbed slightly.
+    Cloud-safe local feature attribution via sensitivity analysis.
     """
 
-    # Build baseline feature vector
+    # Build baseline feature vector ONCE
     X = pd.DataFrame([{f: float(player_row.get(f, 0)) for f in FEATURES}])
 
-    baseline_pred = predict_player_score(player_row)
+    baseline_pred = predict_from_features(X)
 
     contributions = {}
 
     for feature in FEATURES:
-        perturbed = player_row.copy()
+        X_perturbed = X.copy()
 
-        original_value = float(player_row.get(feature, 0))
+        original = X_perturbed.at[0, feature]
 
-        # Small, safe perturbation
-        delta = max(0.05 * abs(original_value), 0.1)
+        # meaningful perturbation
+        delta = max(abs(original) * 0.1, 0.2)
+        X_perturbed.at[0, feature] = original + delta
 
-        perturbed[feature] = original_value + delta
+        new_pred = predict_from_features(X_perturbed)
 
-        new_pred = predict_player_score(perturbed)
-
-        contributions[feature] = float(new_pred - baseline_pred)
+        contributions[feature] = new_pred - baseline_pred
 
     return X, contributions
