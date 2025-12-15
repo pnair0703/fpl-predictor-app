@@ -44,7 +44,7 @@ def prepare_features(row):
     # Position encoding
     # -----------------------
     pos_map = {"GK": 1, "DEF": 2, "MID": 3, "FWD": 4}
-    position = pos_map.get(row.get("pos"), 0)
+    position = int(row.get("position", 0))
 
     # -----------------------
     # Base features
