@@ -19,6 +19,7 @@ FEATURE_EXPLANATIONS = {
 }
 
 
+
 def display_shap_tab(df):
     st.header("Model Explainability")
 
@@ -30,53 +31,53 @@ def display_shap_tab(df):
 
     player_row = df[df["web_name"] == selected_player].iloc[0]
 
-    X, contributions = get_feature_attributions(player_row)
+    result = get_shap_values(player_row)
+
+    if result is None:
+        st.warning(
+            "Explainability is unavailable in the cloud runtime "
+            "due to dependency constraints."
+        )
+        return
+
+    X, contributions = result
 
     st.subheader("Feature Contributions (Relative Impact)")
 
-    # Build display table
-    impact_df = (
-        X.T
-        .rename(columns={0: "value"})
-        .assign(impact=contributions)
-        .assign(
-            direction=lambda d: np.where(d["impact"] >= 0, "↑", "↓"),
-            magnitude=lambda d: (np.abs(d["impact"]) * 100).round(1),
-        )
-        .sort_values("magnitude", ascending=False)
-    )
+    # Normalize to percentages
+    total = sum(abs(v) for v in contributions.values()) or 1
+    rows = []
 
-    st.dataframe(
-        impact_df[["value", "direction", "magnitude"]]
-        .rename(columns={"magnitude": "impact (%)"}),
-        use_container_width=True
-    )
+    for feature, value in contributions.items():
+        rows.append({
+            "Feature": feature,
+            "Impact (%)": round(abs(value) / total * 100, 1),
+            "Direction": "↑" if value > 0 else "↓"
+        })
 
-    st.markdown("### Interpretation")
+    rows.sort(key=lambda x: x["Impact (%)"], reverse=True)
 
-    top = impact_df.head(3)
+    st.dataframe(rows, use_container_width=True)
 
-    bullets = []
-    for idx, row in top.iterrows():
-        sign = "positive" if row["impact"] > 0 else "negative"
-        bullets.append(
-            f"- **{idx}** was a **{sign} driver**, contributing **{row['magnitude']}%** of total model impact"
-        )
+    st.subheader("Interpretation")
+
+    top = rows[:3]
+    bullets = [
+        f"- **{r['Feature']}** was a {'positive' if r['Direction']=='↑' else 'negative'} driver, "
+        f"contributing **{r['Impact (%)']}%** of total model impact"
+        for r in top
+    ]
 
     st.markdown(
-        f"""
-The model’s prediction for **{selected_player}** is primarily driven by:
-
-{chr(10).join(bullets)}
-
-This explains *why* the model favors or avoids this player.
-"""
+        "The model’s prediction for **{}** is primarily driven by:\n\n{}".format(
+            selected_player,
+            "\n".join(bullets)
+        )
     )
 
     st.subheader("Feature Context")
-    for feature in impact_df.index:
-        explanation = FEATURE_EXPLANATIONS.get(feature)
-        if explanation:
-            st.markdown(f"**{feature}**")
-            st.caption(explanation)
+
+    for feature, explanation in FEATURE_EXPLANATIONS.items():
+        st.markdown(f"**{feature}**")
+        st.caption(explanation)
 
