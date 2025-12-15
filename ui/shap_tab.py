@@ -3,101 +3,88 @@
 import streamlit as st
 import pandas as pd
 
-
 from services.shap_explainer import get_shap_values
 
 FEATURE_EXPLANATIONS = {
-    "minutes": "Minutes played in recent matches. More minutes usually means more chances to score FPL points.",
-    "expected_goals": "Expected goals (xG). Measures the quality of scoring chances the player gets.",
-    "expected_assists": "Expected assists (xA). Measures how likely the player is to assist goals.",
-    "expected_goal_involvements": "xG + xA combined. Overall attacking involvement.",
-    "ict_index": "Influence, Creativity, Threat index. FPL’s composite metric for overall attacking impact.",
-    "is_home": "Whether the next match is at home. Home fixtures generally boost performance.",
-    "fixture_difficulty": "Difficulty rating of the upcoming opponent (1 = easy, 5 = hard).",
-    "form_1": "Player’s form in the most recent match.",
-    "form_3": "Average form across the last 3 matches.",
-    "form_5": "Average form across the last 5 matches.",
-    "xGI_3": "Average expected goal involvement over the last 3 matches."
+    "minutes": "Minutes played recently. More minutes usually mean more scoring opportunities.",
+    "expected_goals": "Expected goals (xG). Measures the quality of chances a player gets.",
+    "expected_assists": "Expected assists (xA). Measures likelihood of assisting goals.",
+    "expected_goal_involvements": "xG + xA. Overall attacking involvement.",
+    "ict_index": "Influence, Creativity, Threat. FPL’s composite attacking impact metric.",
+    "is_home": "Whether the upcoming match is at home. Home fixtures boost returns.",
+    "fixture_difficulty": "Difficulty of the upcoming opponent (1 = easy, 5 = hard).",
+    "form_1": "Form from the most recent match.",
+    "form_3": "Average form over the last 3 matches.",
+    "form_5": "Average form over the last 5 matches.",
+    "xGI_3": "Average xGI over the last 3 matches."
 }
+
 
 def display_shap_tab(player_row):
     st.header("SHAP Model Explainability")
-    shap_values = get_shap_values(model, features)
 
-    if shap_values is None:
-        st.warning(
-            "SHAP explainability is unavailable in the cloud runtime "
-            "(Python 3.13 dependency limitation)."
-        )
+    # --- Build feature row (MUST match training columns) ---
+    features = pd.DataFrame([{
+        "minutes": player_row["minutes"],
+        "expected_goals": player_row["xG"],
+        "expected_assists": player_row["xA"],
+        "expected_goal_involvements": player_row["xGI"],
+        "ict_index": player_row["ict_index"],
+        "is_home": int(player_row["next_is_home"]),
+        "fixture_difficulty": player_row["fixture_difficulty"],
+        "form_1": player_row["form"],
+        "form_3": player_row["form"],
+        "form_5": player_row["form"],
+        "xGI_3": player_row["xGI"],
+    }])
+
+    shap_values = get_shap_values(features)
+
+    if not shap_values:
+        st.warning("Explainability unavailable for this model.")
         return
-    
-    
-    X, shap_values, base_value = get_shap_values(player_row)
 
-    predicted = float(base_value + shap_values[0].sum())
+    st.subheader("Feature Contributions")
 
-    st.subheader(f"Predicted Points: {predicted:.2f}")
+    # Sort by absolute impact
+    sorted_items = sorted(
+        shap_values.items(),
+        key=lambda x: abs(x[1]),
+        reverse=True
+    )
+
+    for feature, value in sorted_items:
+        direction = "↑" if value >= 0 else "↓"
+        st.metric(
+            label=feature,
+            value=f"{value:.3f}",
+            delta=direction
+        )
+
+    # Interpretation
+    st.subheader("Interpretation")
+
+    top_features = sorted_items[:3]
+    bullets = []
+
+    for feat, val in top_features:
+        change = "increased" if val > 0 else "decreased"
+        bullets.append(
+            f"- **{feat}** {change} the prediction by **{abs(val):.2f} points**"
+        )
 
     st.markdown(
-        """
-        This chart shows how each feature contributed to the model’s prediction.
-        """
-    )
+        f"""
+The model’s prediction is driven primarily by the following factors:
 
-    # SHAP bar plot
-    fig, ax = plt.subplots()
-    shap.plots.bar(
-        shap.Explanation(
-            values=shap_values[0],
-            base_values=base_value,
-            data=X.iloc[0],
-            feature_names=X.columns,
-        ),
-        show=False,
-        max_display=10
-    )
-
-    st.pyplot(fig)
-
-    # Text explanation
-    explain_text = build_shap_text(X, shap_values[0], predicted)
-    st.markdown(explain_text)
-    st.subheader("Feature explanations")
-
-    for feature in FEATURE_EXPLANATIONS:
-        explanation = FEATURE_EXPLANATIONS.get(
-            feature,
-            "No explanation available for this feature."
-        )
-
-        st.markdown(f"**{feature}**")
-        st.caption(explanation)
-
-
-    
-
-
-
-def build_shap_text(X, shap_vals, predicted):
-    contributions = list(zip(X.columns, shap_vals))
-    contributions.sort(key=lambda x: abs(x[1]), reverse=True)
-
-    top = contributions[:3]
-
-    bullets = []
-    for feat, val in top:
-        direction = "increased" if val > 0 else "decreased"
-        bullets.append(
-            f"- **{feat}** {direction} the prediction by **{abs(val):.2f}** points"
-        )
-
-    return f"""
-### Interpretation
-
-The model predicts **{predicted:.2f} points** for this player.
-
-Key drivers:
 {chr(10).join(bullets)}
 
-This helps explain *why* the model prefers or avoids this player.
+This breakdown explains *why* the model favors or avoids this player.
 """
+    )
+
+    st.subheader("Feature Explanations")
+
+    for feature, explanation in FEATURE_EXPLANATIONS.items():
+        st.markdown(f"**{feature}**")
+        st.caption(explanation)
