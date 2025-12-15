@@ -1,14 +1,24 @@
 # services/shap_explainer.py
 
-import numpy as np
 import pandas as pd
 import joblib
 
-# Load trained model
-MODEL_PATH = "models/xgb_fpl_model.pkl"
-_model = joblib.load(MODEL_PATH)
+# Try importing shap safely
+try:
+    import shap
+    SHAP_AVAILABLE = True
+except Exception:
+    SHAP_AVAILABLE = False
 
-FEATURES = [
+# Load trained model
+_model = joblib.load("models/xgb_fpl_model.pkl") if SHAP_AVAILABLE else None
+_explainer = shap.TreeExplainer(_model) if SHAP_AVAILABLE else None
+
+
+# --------------------------------------------------
+# Build features EXACTLY as training schema expects
+# --------------------------------------------------
+FEATURE_COLUMNS = [
     "minutes",
     "expected_goals",
     "expected_assists",
@@ -23,24 +33,57 @@ FEATURES = [
 ]
 
 
-def get_feature_attributions(player_row):
+def build_shap_features(player_row):
     """
-    Returns normalized local feature contributions.
-    These are NOT SHAP values — they are model-aware,
-    scaled importance scores for explanation purposes.
+    Convert live app player row into the exact
+    feature schema used during training.
     """
 
-    # Build single-row dataframe
-    X = pd.DataFrame([{f: float(player_row.get(f, 0)) for f in FEATURES}])
+    return pd.DataFrame([{
+        "minutes": float(player_row.get("minutes", 0)),
 
-    # Raw feature importances from the trained model
-    raw_importance = _model.feature_importances_
+        # 🔑 CRITICAL FIX: map live → training names
+        "expected_goals": float(player_row.get("xG", 0)),
+        "expected_assists": float(player_row.get("xA", 0)),
+        "expected_goal_involvements": float(player_row.get("xGI", 0)),
 
-    # Contribution = importance * feature value
-    contributions = raw_importance * X.iloc[0].values
+        "ict_index": float(player_row.get("ict_index", 0)),
+        "is_home": int(player_row.get("next_is_home", 0)),
+        "fixture_difficulty": float(player_row.get("fixture_difficulty", 3)),
 
-    # Normalize to percentages
-    total = np.sum(np.abs(contributions)) + 1e-9
-    normalized = contributions / total
+        # Rolling form features
+        "form_1": float(player_row.get("form", 0)),
+        "form_3": float(player_row.get("form", 0)),
+        "form_5": float(player_row.get("form", 0)),
 
-    return X, normalized
+        # Rolling xGI
+        "xGI_3": float(
+            sum(player_row.get("recent_xgi_trend", [player_row.get("xGI", 0)])[-3:]) / 
+            max(1, len(player_row.get("recent_xgi_trend", [])))
+        ),
+    }])[FEATURE_COLUMNS]
+
+
+# --------------------------------------------------
+# Public SHAP interface used by the UI
+# --------------------------------------------------
+def get_shap_values(player_row):
+    """
+    Returns (X, shap_values, base_value)
+    or None if SHAP is unavailable.
+    """
+
+    if not SHAP_AVAILABLE:
+        return None
+
+    X = build_shap_features(player_row)
+
+    shap_values = _explainer.shap_values(X)
+
+    base_value = (
+        _explainer.expected_value
+        if not isinstance(_explainer.expected_value, list)
+        else _explainer.expected_value[0]
+    )
+
+    return X, shap_values, base_value
