@@ -2,8 +2,7 @@
 
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-import shap
+
 
 from services.shap_explainer import get_shap_values
 
