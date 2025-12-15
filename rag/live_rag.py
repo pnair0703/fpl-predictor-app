@@ -152,8 +152,7 @@ def build_live_rag_answer(player):
     Clean, readable, premium-style RAG output.
     NEWS is shown AT THE END, after final interpretation.
     """
-    if sentiment_score == 0.0:
-        sentiment_note = "_Live sentiment unavailable in this environment._"
+  
 
     name = player["web_name"]
 
