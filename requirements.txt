@@ -1,0 +1,11 @@
+streamlit
+fpl
+pandas
+numpy
+st-aggrid
+scikit-learn
+plotly
+xgboost
+joblib
+aiohttp
+duckduckgo-search
