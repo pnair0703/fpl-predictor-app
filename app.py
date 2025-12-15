@@ -89,7 +89,7 @@ elif page == "SHAP Explainability":
 
     shap_player_row = df[df["web_name"] == shap_player_name].iloc[0]
 
-    display_shap_tab(shap_player_row)
+    display_shap_tab(df)
 
 elif page == "Prediction Uncertainty":
     display_uncertainty_tab(df)
