@@ -79,3 +79,5 @@ This explains *why* the model favors or avoids this player.
         if explanation:
             st.markdown(f"**{feature}**")
             st.caption(explanation)
+
+st.write(X)
