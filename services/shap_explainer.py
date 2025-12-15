@@ -1,35 +1,46 @@
 # services/shap_explainer.py
 
-import joblib
+import numpy as np
 import pandas as pd
+import joblib
 
+# Load trained model
 MODEL_PATH = "models/xgb_fpl_model.pkl"
+_model = joblib.load(MODEL_PATH)
 
-_model = None
+FEATURES = [
+    "minutes",
+    "expected_goals",
+    "expected_assists",
+    "expected_goal_involvements",
+    "ict_index",
+    "is_home",
+    "fixture_difficulty",
+    "form_1",
+    "form_3",
+    "form_5",
+    "xGI_3",
+]
 
 
-def load_model():
-    global _model
-    if _model is None:
-        _model = joblib.load(MODEL_PATH)
-    return _model
-
-
-def get_shap_values(features_df: pd.DataFrame):
+def get_feature_attributions(player_row):
     """
-    Returns feature contributions using XGBoost native importance.
-    SHAP-style explanation without requiring shap dependency.
+    Returns normalized local feature contributions.
+    These are NOT SHAP values — they are model-aware,
+    scaled importance scores for explanation purposes.
     """
 
-    model = load_model()
+    # Build single-row dataframe
+    X = pd.DataFrame([{f: float(player_row.get(f, 0)) for f in FEATURES}])
 
-    booster = model.get_booster()
-    score = booster.get_score(importance_type="gain")
+    # Raw feature importances from the trained model
+    raw_importance = _model.feature_importances_
 
-    # Align with input feature order
-    shap_like = {
-        feature: score.get(feature, 0.0)
-        for feature in features_df.columns
-    }
+    # Contribution = importance * feature value
+    contributions = raw_importance * X.iloc[0].values
 
-    return shap_like
+    # Normalize to percentages
+    total = np.sum(np.abs(contributions)) + 1e-9
+    normalized = contributions / total
+
+    return X, normalized
